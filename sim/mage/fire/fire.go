@@ -58,7 +58,7 @@ func (fireMage *FireMage) GetMasteryBonus() float64 {
 	return (0.22 + 0.028*fireMage.GetMasteryPoints())
 }
 
-func (fireMage *FireMage) ApplyTalents() {
+func (fireMage *FireMage) ApplyFireSpecInnate() {
 
 	// Fire  Specialization Bonus
 	fireMage.AddStaticMod(core.SpellModConfig{
@@ -67,6 +67,7 @@ func (fireMage *FireMage) ApplyTalents() {
 		Kind:       core.SpellMod_DamageDone_Pct,
 	})
 
+	// Fire Mastery
 	fireMastery := fireMage.AddDynamicMod(core.SpellModConfig{
 		ClassMask:  mage.MageSpellFireDoT,
 		FloatValue: fireMage.GetMasteryBonus(),

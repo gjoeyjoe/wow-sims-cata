@@ -20,8 +20,7 @@ var TalentTreeSizes = [3]int{21, 21, 19}
 type Mage struct {
 	core.Character
 
-	moltenArmorMod    *core.SpellMod
-	arcanePowerGCDmod *core.SpellMod
+	moltenArmorMod *core.SpellMod
 
 	Talents       *proto.MageTalents
 	Options       *proto.MageOptions
@@ -72,7 +71,7 @@ type Mage struct {
 	ArcanePotencyAura      *core.Aura
 	ArcanePowerAura        *core.Aura
 	BrainFreezeAura        *core.Aura
-	ClearcastingAura       *core.Aura
+	MageClearcastingAura   *core.Aura
 	CriticalMassAuras      core.AuraArray
 	FingersOfFrostAura     *core.Aura
 	FlameOrbTimer          *core.Aura
@@ -80,6 +79,7 @@ type Mage struct {
 	GlyphedFrostArmorPA    *core.PendingAction
 	hotStreakCritAura      *core.Aura
 	HotStreakAura          *core.Aura
+	hotStreakCritListener  *core.Aura
 	MageArmorAura          *core.Aura
 	MageArmorPA            *core.PendingAction
 	PyromaniacAura         *core.Aura
@@ -93,29 +93,15 @@ func (mage *Mage) GetCharacter() *core.Character {
 	return &mage.Character
 }
 
-func (mage *Mage) GetMage() *Mage {
-	return mage
-}
-
-func (mage *Mage) HasPrimeGlyph(glyph proto.MagePrimeGlyph) bool {
-	return mage.HasGlyph(int32(glyph))
-}
-
-func (mage *Mage) HasMajorGlyph(glyph proto.MageMajorGlyph) bool {
-	return mage.HasGlyph(int32(glyph))
-}
-func (mage *Mage) HasMinorGlyph(glyph proto.MageMinorGlyph) bool {
-	return mage.HasGlyph(int32(glyph))
+func (mage *Mage) AddPartyBuffs(partyBuffs *proto.PartyBuffs) {
 }
 
 func (mage *Mage) AddRaidBuffs(raidBuffs *proto.RaidBuffs) {
 	raidBuffs.ArcaneBrilliance = true
 
-	// if mage.Talents.ArcaneEmpowerment == 3 {
-	// 	raidBuffs.ArcaneEmpowerment = true
-	// }
-}
-func (mage *Mage) AddPartyBuffs(partyBuffs *proto.PartyBuffs) {
+	if mage.Talents.ArcaneTactics {
+		raidBuffs.ArcaneTactics = true
+	}
 }
 
 func (mage *Mage) ApplyTalents() {
@@ -126,7 +112,7 @@ func (mage *Mage) ApplyTalents() {
 }
 
 func (mage *Mage) Initialize() {
-
+	mage.registerLivingBombSpell()
 	mage.applyArmor()
 	mage.applyGlyphs()
 	mage.registerArcaneBlastSpell()
@@ -152,12 +138,23 @@ func (mage *Mage) Initialize() {
 	mage.registerBlastWaveSpell()
 	mage.registerDragonsBreathSpell()
 	// mage.registerSummonWaterElementalCD()
-
+	mage.registerIgnite()
 	mage.applyArcaneMissileProc()
 	mage.ScalingBaseDamage = 937.330078125
 }
 
 func (mage *Mage) Reset(sim *core.Simulation) {
+}
+
+func (mage *Mage) HasPrimeGlyph(glyph proto.MagePrimeGlyph) bool {
+	return mage.HasGlyph(int32(glyph))
+}
+
+func (mage *Mage) HasMajorGlyph(glyph proto.MageMajorGlyph) bool {
+	return mage.HasGlyph(int32(glyph))
+}
+func (mage *Mage) HasMinorGlyph(glyph proto.MageMinorGlyph) bool {
+	return mage.HasGlyph(int32(glyph))
 }
 
 func NewMage(character *core.Character, options *proto.Player, mageOptions *proto.MageOptions) *Mage {
@@ -169,13 +166,6 @@ func NewMage(character *core.Character, options *proto.Player, mageOptions *prot
 
 	core.FillTalentsProto(mage.Talents.ProtoReflect(), options.TalentsString, TalentTreeSizes)
 
-	mage.mirrorImage = mage.NewMirrorImage()
-	mage.flameOrb = mage.NewFlameOrb()
-	mage.EnableManaBar()
-	return mage
-}
-
-func (mage *Mage) applyArmor() {
 	// Molten Armor
 	if mage.Options.Armor == proto.MageOptions_MoltenArmor {
 		var critToAdd float64
@@ -195,7 +185,6 @@ func (mage *Mage) applyArmor() {
 	if mage.Options.Armor == proto.MageOptions_MageArmor {
 		hasGlyph := mage.HasPrimeGlyph(proto.MagePrimeGlyph_GlyphOfMageArmor)
 		manaRegenPerSecond := mage.MaxMana() * core.TernaryFloat64(hasGlyph, .072, 0.06)
-		// TODO regen 3% max mana as mp5 aka 0.6% max mana per second
 		mage.MageArmorAura = core.MakePermanent(mage.RegisterAura(core.Aura{
 			ActionID: core.ActionID{SpellID: 6117},
 			Label:    "Mage Armor",
@@ -209,14 +198,24 @@ func (mage *Mage) applyArmor() {
 			},
 		}))
 	}
+	mage.mirrorImage = mage.NewMirrorImage()
+	mage.flameOrb = mage.NewFlameOrb()
+
+	if mage.Spec == proto.Spec_SpecFrostMage {
+		//mage.WaterElemental = mage.NewWaterElemental()
+	}
+	mage.EnableManaBar()
+	mage.applyArcaneMissileProc()
+
+	return mage
 }
 
-func (mage *Mage) GetArcaneMasteryBonus() float64 {
-	return (1.12 + 0.015*mage.GetMasteryPoints())
+func (mage *Mage) GetMage() *Mage {
+	return mage
 }
 
-func (mage *Mage) ArcaneMasteryValue() float64 {
-	return mage.GetArcaneMasteryBonus() * (mage.CurrentMana() / mage.MaxMana())
+func (mage *Mage) applyArmor() {
+
 }
 
 // Agent is a generic way to access underlying mage on any of the agents.

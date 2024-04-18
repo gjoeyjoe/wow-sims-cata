@@ -51,7 +51,7 @@ func (mage *Mage) registerCombustionSpell() {
 			OnSnapshot: func(sim *core.Simulation, target *core.Unit, dot *core.Dot, _ bool) {
 				combustionDotDamage = 0.0
 
-				dotSpells := []*core.Spell{mage.LivingBomb, mage.Ignite}
+				dotSpells := []*core.Spell{mage.LivingBomb} //mage.Ignite}
 				fmt.Println("Calc Time: ", sim.CurrentTime)
 				for _, spell := range dotSpells {
 					dots := spell.Dot(mage.CurrentTarget)

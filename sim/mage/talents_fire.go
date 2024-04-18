@@ -1,20 +1,18 @@
 package mage
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/wowsims/cata/sim/core"
 )
 
-//"github.com/wowsims/cata/sim/core/proto"
-
 func (mage *Mage) ApplyFireTalents() {
-
+	fmt.Println("ApplyFireTalents() called")
 	// Cooldowns/Special Implementations
-	mage.applyIgnite()
-	mage.applyHotStreak()
-	mage.applyMoltenFury()
-	mage.applyMasterOfElements()
+	//mage.applyHotStreak()
+	//mage.applyMoltenFury()
+	//mage.applyMasterOfElements()
 	//mage.applyPyromaniac()
 
 	// Improved Fire Blast
@@ -67,6 +65,7 @@ func (mage *Mage) ApplyFireTalents() {
 
 // Master of Elements
 func (mage *Mage) applyMasterOfElements() {
+	fmt.Println("Registering Master of Elements")
 	if mage.Talents.MasterOfElements == 0 {
 		return
 	}
@@ -74,7 +73,15 @@ func (mage *Mage) applyMasterOfElements() {
 	refundCoeff := 0.15 * float64(mage.Talents.MasterOfElements)
 	manaMetrics := mage.NewManaMetrics(core.ActionID{SpellID: 29077})
 
+	/* 	core.MakeProcTriggerAura(&mage.Unit, core.ProcTrigger{
+		Name: "Master of Elements",
+		Callback: core.CallbackOnSpellHitDealt,
+		ProcMask: core.ProcMaskSpellDamage,
+		Outcome: core.OutcomeLanded,
+		Handler: func()
+	}) */
 	mage.RegisterAura(core.Aura{
+		ActionID: core.ActionID{SpellID: 29076},
 		Label:    "Master of Elements",
 		Duration: core.NeverExpires,
 		OnReset: func(aura *core.Aura, sim *core.Simulation) {
@@ -108,7 +115,7 @@ func (mage *Mage) applyHotStreak() {
 	t10ProcAura := mage.BloodmagesRegalia2pcAura()
 
 	// Unimproved Hot Streak Proc Aura
-	mage.HotStreakAura = mage.RegisterAura(core.Aura{
+	mage.HotStreakAura = mage.GetOrRegisterAura(core.Aura{
 		Label:    "Hot Streak",
 		ActionID: core.ActionID{SpellID: 48108},
 		Duration: time.Second * 10,
@@ -128,7 +135,7 @@ func (mage *Mage) applyHotStreak() {
 	})
 
 	// Aura to allow the character to track crits
-	mage.RegisterAura(core.Aura{
+	mage.hotStreakCritListener = mage.RegisterAura(core.Aura{
 		Label:    "Hot Streak Trigger",
 		Duration: core.NeverExpires,
 		OnReset: func(aura *core.Aura, sim *core.Simulation) {
@@ -169,13 +176,6 @@ func (mage *Mage) applyHotStreak() {
 
 						mage.HotStreakAura.Activate(sim)
 					}
-
-					// If you proc and had 0 stacks of crits, add to your crit counter.
-					// No idea if 1 out of 2 talent points means you have a 50% chance to
-					// add to the 1st stack of crit, or only the 2nd. Doesn't seem
-					// all that important to check since every fire mage in the world
-					// will go 2 out of 2 points, but worth researching.
-					// If it checks 1st crit as well, can add a proc check to this too
 				} else {
 					mage.hotStreakCritAura.Activate(sim)
 					mage.hotStreakCritAura.AddStack(sim)
@@ -185,11 +185,11 @@ func (mage *Mage) applyHotStreak() {
 	})
 }
 
-func (mage *Mage) applyPyromaniac() {
-	if mage.Talents.Pyromaniac == 0 {
-		return
-	}
-	/*
+/* func (mage *Mage) applyPyromaniac() {
+if mage.Talents.Pyromaniac == 0 {
+	return
+} */
+/*
 		pyromaniacMod := mage.AddDynamicMod(core.SpellModConfig{
 			ClassMask:  MageSpellsAll,
 			FloatValue: -.05 * float64(mage.Talents.Pyromaniac),
@@ -233,8 +233,8 @@ func (mage *Mage) applyPyromaniac() {
 					pyromaniacMod.Deactivate()
 				}
 			},
-		})*/
-}
+		})
+}*/
 
 func (mage *Mage) applyMoltenFury() {
 	if mage.Talents.MoltenFury == 0 {
@@ -260,77 +260,4 @@ func (mage *Mage) applyMoltenFury() {
 			}
 		})
 	})
-}
-
-func (mage *Mage) applyIgnite() {
-	const IgniteTicks = 2
-	// Ignite proc listener
-	mage.RegisterAura(core.Aura{
-		Label:    "Ignite Talent",
-		Duration: core.NeverExpires,
-		OnReset: func(aura *core.Aura, sim *core.Simulation) {
-			aura.Activate(sim)
-		},
-		OnSpellHitDealt: func(aura *core.Aura, sim *core.Simulation, spell *core.Spell, result *core.SpellResult) {
-			if !spell.ProcMask.Matches(core.ProcMaskSpellDamage) {
-				return
-			}
-			if spell.SpellSchool.Matches(core.SpellSchoolFire) && result.DidCrit() {
-				mage.procIgnite(sim, result)
-			}
-		},
-		OnPeriodicDamageDealt: func(aura *core.Aura, sim *core.Simulation, spell *core.Spell, result *core.SpellResult) {
-			if !spell.ProcMask.Matches(core.ProcMaskSpellDamage) {
-				return
-			}
-			if mage.LivingBomb != nil && result.DidCrit() {
-				mage.procIgnite(sim, result)
-			}
-		},
-	})
-
-	// The ignite dot
-	mage.Ignite = mage.RegisterSpell(core.SpellConfig{
-		ActionID:       core.ActionID{SpellID: 413843},
-		SpellSchool:    core.SpellSchoolFire,
-		ProcMask:       core.ProcMaskProc,
-		Flags:          SpellFlagMage | core.SpellFlagIgnoreModifiers,
-		ClassSpellMask: MageSpellIgnite,
-
-		DamageMultiplier: 1,
-		ThreatMultiplier: 1,
-
-		Dot: core.DotConfig{
-			Aura: core.Aura{
-				Label: "Ignite",
-			},
-			NumberOfTicks: IgniteTicks,
-			TickLength:    time.Second * 2,
-			OnTick: func(sim *core.Simulation, target *core.Unit, dot *core.Dot) {
-				dot.CalcAndDealPeriodicSnapshotDamage(sim, target, dot.OutcomeTick)
-			},
-		},
-
-		ApplyEffects: func(sim *core.Simulation, target *core.Unit, spell *core.Spell) {
-			spell.SpellMetrics[target.UnitIndex].Hits++
-			spell.Dot(target).ApplyOrReset(sim)
-		},
-	})
-}
-
-func (mage *Mage) procIgnite(sim *core.Simulation, result *core.SpellResult) {
-	const IgniteTicks = 2
-	igniteDamageMultiplier := []float64{0.0, 0.13, 0.26, 0.40}[mage.Talents.Ignite]
-
-	dot := mage.Ignite.Dot(result.Target)
-
-	newDamage := result.Damage * igniteDamageMultiplier
-
-	// if ignite was still active, we store up the remaining damage to be added to the next application
-	outstandingDamage := core.TernaryFloat64(dot.IsActive(), dot.SnapshotBaseDamage*float64(dot.NumberOfTicks-dot.TickCount), 0)
-
-	dot.SnapshotAttackerMultiplier = 1
-	// Add the remaining damage to the new ignite proc, divide it over 2 ticks
-	dot.SnapshotBaseDamage = (outstandingDamage + newDamage) / float64(IgniteTicks)
-	mage.Ignite.Cast(sim, result.Target)
 }

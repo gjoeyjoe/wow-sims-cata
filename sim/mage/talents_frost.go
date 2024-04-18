@@ -11,12 +11,12 @@ import (
 
 func (mage *Mage) ApplyFrostTalents() {
 
-	// Cooldowns/Special Implementations
-	mage.registerColdSnapCD()
-	mage.registerIcyVeinsCD()
-	mage.applyFingersOfFrost()
-	// mage.applyImprovedFreeze()
-	mage.applyBrainFreeze()
+	/* 	// Cooldowns/Special Implementations
+	   	mage.registerColdSnapCD()
+	   	mage.registerIcyVeinsCD()
+	   	mage.applyFingersOfFrost()
+	   	// mage.applyImprovedFreeze()
+	   	mage.applyBrainFreeze() */
 
 	//Early Frost
 	if mage.Talents.EarlyFrost > 0 {

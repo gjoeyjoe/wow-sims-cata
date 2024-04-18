@@ -11,11 +11,11 @@ import (
 func (mage *Mage) ApplyArcaneTalents() {
 
 	// Cooldowns/Special Implementations
-	mage.applyArcaneConcentration()
-	mage.registerPresenceOfMindCD()
-	mage.applyArcanePotency()
-	mage.applyFocusMagic()
-	mage.registerArcanePowerCD()
+	/* 	mage.applyArcaneConcentration()
+	   	mage.registerPresenceOfMindCD()
+	   	mage.applyArcanePotency()
+	   	mage.applyFocusMagic()
+	   	mage.registerArcanePowerCD() */
 
 	// Netherwind Presence
 	if mage.Talents.NetherwindPresence > 0 {
@@ -82,7 +82,7 @@ func (mage *Mage) applyArcaneConcentration() {
 	var proccedSpell *core.Spell
 
 	// Tracks if Clearcasting should proc
-	mage.RegisterAura(core.Aura{
+	mage.GetOrRegisterAura(core.Aura{
 		Label:    "Arcane Concentration",
 		Duration: core.NeverExpires,
 		OnReset: func(aura *core.Aura, sim *core.Simulation) {
@@ -108,7 +108,7 @@ func (mage *Mage) applyArcaneConcentration() {
 			proccedSpell = spell
 
 			//mage.ArcanePotencyAura.Activate(sim)
-			mage.ClearcastingAura.Activate(sim)
+			mage.MageClearcastingAura.Activate(sim)
 			mage.ArcaneBlastAura.GetStacks()
 		},
 	})
@@ -142,8 +142,9 @@ func (mage *Mage) applyArcaneConcentration() {
 		FloatValue: -1,
 		Kind:       core.SpellMod_PowerCost_Pct,
 	})
+
 	// The Clearcasting proc
-	mage.ClearcastingAura = mage.RegisterAura(core.Aura{
+	mage.MageClearcastingAura = mage.RegisterAura(core.Aura{
 		Label:    "Clearcasting",
 		ActionID: core.ActionID{SpellID: 12536},
 		Duration: time.Second * 15,
@@ -283,14 +284,14 @@ func (mage *Mage) registerArcanePowerCD() {
 				spell.DamageMultiplierAdditive += 0.2
 				spell.CostMultiplier += 0.1
 			}
-			mage.arcanePowerGCDmod.Activate()
+			//mage.arcanePowerGCDmod.Activate()
 		},
 		OnExpire: func(aura *core.Aura, sim *core.Simulation) {
 			for _, spell := range affectedSpells {
 				spell.DamageMultiplierAdditive -= 0.2
 				spell.CostMultiplier -= 0.2
 			}
-			mage.arcanePowerGCDmod.Deactivate()
+			//mage.arcanePowerGCDmod.Deactivate()
 		},
 	})
 	core.RegisterPercentDamageModifierEffect(mage.ArcanePowerAura, 1.2)

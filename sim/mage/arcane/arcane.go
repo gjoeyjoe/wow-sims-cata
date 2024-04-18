@@ -66,8 +66,9 @@ func (arcaneMage *ArcaneMage) ApplyArcaneSpecInnate() {
 	// Arcane Mastery
 
 	arcaneMastery := arcaneMage.AddDynamicMod(core.SpellModConfig{
-		ClassMask: mage.MageSpellsAll,
-		Kind:      core.SpellMod_DamageDone_Pct,
+		ClassMask:  mage.MageSpellsAll,
+		FloatValue: arcaneMage.ArcaneMasteryValue(),
+		Kind:       core.SpellMod_DamageDone_Pct,
 	})
 
 	arcaneMage.AddOnMasteryStatChanged(func(sim *core.Simulation, oldMastery, newMastery float64) {
@@ -78,7 +79,7 @@ func (arcaneMage *ArcaneMage) ApplyArcaneSpecInnate() {
 		Label:    "Mana Adept",
 		ActionID: core.ActionID{SpellID: 76547},
 		OnGain: func(aura *core.Aura, sim *core.Simulation) {
-			arcaneMastery.UpdateFloatValue(arcaneMage.CurrentMana() / arcaneMage.MaxMana() * arcaneMage.GetArcaneMasteryBonus())
+			arcaneMastery.UpdateFloatValue(arcaneMage.ArcaneMasteryValue())
 			arcaneMastery.Activate()
 		},
 		OnExpire: func(aura *core.Aura, sim *core.Simulation) {
@@ -86,4 +87,12 @@ func (arcaneMage *ArcaneMage) ApplyArcaneSpecInnate() {
 		},
 	}))
 
+}
+
+func (arcaneMage *ArcaneMage) GetMasteryBonus() float64 {
+	return (0.12 + 0.015*arcaneMage.GetMasteryPoints())
+}
+
+func (arcaneMage *ArcaneMage) ArcaneMasteryValue() float64 {
+	return arcaneMage.GetMasteryBonus() * (arcaneMage.CurrentMana() / arcaneMage.MaxMana())
 }
